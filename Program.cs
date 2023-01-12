@@ -9,6 +9,21 @@ using Ical.Net.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Calendar = Ical.Net.Calendar;
 
+TimeZoneInfo currentTimeZone = TimeZoneInfo.Local;
+
+void ConfigTimeZone(string timeZone)
+{
+    currentTimeZone=TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+}
+
+DateOnly Today()
+{
+    return DateOnly.FromDateTime( TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,currentTimeZone).Date);
+}
+DateTime TodayDateTime()
+{
+    return Today().ToDateTime(TimeOnly.MinValue);
+}
 // i: number of cycles
 IEnumerable<(int, DateOnly)> GetEventDates(Event @event)
 {
@@ -60,10 +75,11 @@ IEnumerable<(int, DateOnly)> GetEventDates(Event @event)
 // Range: 90 days before and after
 IEnumerable<(int, DateOnly)> GetRecentEventDates(Event @event, int from, int to)
 {
+    var today = TodayDateTime();
     foreach (var (noc, date) in GetEventDates(@event))
     {
         var theDay = date.ToDateTime(TimeOnly.MinValue);
-        var diffDays = (theDay - DateTime.Today).TotalDays;
+        var diffDays = (theDay - today).TotalDays;
         if (diffDays < from)
         {
             continue;
@@ -81,7 +97,6 @@ IEnumerable<(int, DateOnly)> GetRecentEventDates(Event @event, int from, int to)
 // Range: 90 days before and after
 IEnumerable<CalendarEvent> GetCalendarEvents(Event @event)
 {
-    var today = DateOnly.FromDateTime(DateTime.Today);
     foreach (var (noc, date) in GetRecentEventDates(@event, -90, 90))
     {
         var theDay = date.ToDateTime(TimeOnly.MinValue);
@@ -164,11 +179,12 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/cal/{subscriptionName}",
         async ([FromRoute] string subscriptionName, [FromQuery] string secret) =>
         {
-
+            
             var config = JsonSerializer.Deserialize<Config>(File.ReadAllText("config.json"));
             var sub = config.Subscriptions.FirstOrDefault(s => s.Name == subscriptionName);
             if (sub is null) return Results.NotFound();
             if (sub.Secret != secret) return Results.Forbid();
+            ConfigTimeZone(sub.TimeZone);
             var cal = GetCalendar(sub);
             await using var calStream = new MemoryStream();
             new CalendarSerializer().Serialize(cal, calStream, Encoding.UTF8);
@@ -182,11 +198,13 @@ app.MapGet("/today/{subscriptionName}",
         {
 
             var config = JsonSerializer.Deserialize<Config>(File.ReadAllText("config.json"));
+            
             var sub = config.Subscriptions.FirstOrDefault(s => s.Name == subscriptionName);
-            if (sub is null) return Task.FromResult(Results.NotFound());
-            if (sub.Secret != secret) return Task.FromResult(Results.Forbid());
+            if (sub is null) return Results.NotFound();
+            ConfigTimeZone(sub.TimeZone);
+            if (sub.Secret != secret) return Results.Forbid();
             var events = GetEventsOfDay(sub, DateOnly.FromDateTime(DateTime.Today));
-            return Task.FromResult(Results.Ok(events.ToArray()));
+            return Results.Ok(events.ToArray());
         })
     .WithName("GetEventsOfDate");
 

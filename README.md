@@ -37,7 +37,7 @@ In this format：
             {
               "Expression": "%Offset% days To the New Year",
               "DayOffset": 1,
-              "Time": "18:00:00"
+              "Time": "08:00:00"
             }
           ]
         }
