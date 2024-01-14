@@ -7,18 +7,19 @@ using Ical.Net.CalendarComponents;
 using Ical.Net.DataTypes;
 using Ical.Net.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using HitRefresh.Memorial;
 using Calendar = Ical.Net.Calendar;
 
 TimeZoneInfo currentTimeZone = TimeZoneInfo.Local;
 
 void ConfigTimeZone(string timeZone)
 {
-    currentTimeZone=TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+    currentTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
 }
 
 DateOnly Today()
 {
-    return DateOnly.FromDateTime( TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,currentTimeZone).Date);
+    return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, currentTimeZone).Date);
 }
 DateTime TodayDateTime()
 {
@@ -63,6 +64,15 @@ IEnumerable<(int, DateOnly)> GetEventDates(Event @event)
             {
                 var i = 0;
                 for (var start = @event.Since; ; start = start.AddYears(1))
+                {
+                    yield return (i, start);
+                    i++;
+                }
+            }
+        case RepeatType.Every100Days:
+            {
+                var i = 0;
+                for (var start = @event.Since; ; start = start.AddDays(100))
                 {
                     yield return (i, start);
                     i++;
@@ -179,7 +189,7 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/cal/{subscriptionName}",
         async ([FromRoute] string subscriptionName, [FromQuery] string secret) =>
         {
-            
+
             var config = JsonSerializer.Deserialize<Config>(File.ReadAllText("config.json"));
             var sub = config.Subscriptions.FirstOrDefault(s => s.Name == subscriptionName);
             if (sub is null) return Results.NotFound();
@@ -198,7 +208,7 @@ app.MapGet("/today/{subscriptionName}",
         {
 
             var config = JsonSerializer.Deserialize<Config>(File.ReadAllText("config.json"));
-            
+
             var sub = config.Subscriptions.FirstOrDefault(s => s.Name == subscriptionName);
             if (sub is null) return Results.NotFound();
             ConfigTimeZone(sub.TimeZone);
@@ -210,22 +220,26 @@ app.MapGet("/today/{subscriptionName}",
 
 app.Run();
 
-public enum RepeatType
+namespace HitRefresh.Memorial
 {
-    None = 0,
-    EveryDay = 1,
-    EveryWeek = 2,
-    EveryMonth = 3,
-    EveryYear = 4,
-}
+    public enum RepeatType
+    {
+        None = 0,
+        EveryDay = 1,
+        EveryWeek = 2,
+        EveryMonth = 3,
+        EveryYear = 4,
+        Every100Days = 5,
+    }
 
-public record Config(Subscription[] Subscriptions);
-public record Subscription(string Name, Event[] Events, string TimeZone, string Secret);
-public record Event(string Expression, DateOnly Since, RepeatType Repeat, EventNotification[] Notification);
-/// <summary>
-/// 
-/// </summary>
-/// <param name="Expression">Expression of Notification</param>
-/// <param name="DayOffset">The number of days the reminder needs to advance.</param>
-/// <param name="Time">Time to show Notification</param>
-public record EventNotification(string Expression, int DayOffset, TimeOnly Time);
+    public record Config(Subscription[] Subscriptions);
+    public record Subscription(string Name, Event[] Events, string TimeZone, string Secret);
+    public record Event(string Expression, DateOnly Since, RepeatType Repeat, EventNotification[] Notification);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="Expression">Expression of Notification</param>
+    /// <param name="DayOffset">The number of days the reminder needs to advance.</param>
+    /// <param name="Time">Time to show Notification</param>
+    public record EventNotification(string Expression, int DayOffset, TimeOnly Time);
+}

@@ -63,6 +63,7 @@ public enum RepeatType
     EveryWeek = 2,
     EveryMonth = 3,
     EveryYear = 4,
+    Every100Days = 5, // <- NEW!!!
 }
 ```
 
