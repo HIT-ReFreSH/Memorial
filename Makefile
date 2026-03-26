@@ -1,5 +1,5 @@
 ﻿IMAGE_NAME = memorial
-IMAGE_TAG = v0.2
+IMAGE_TAG = v0.3
 DOCKERFILE_DIR = .
 WORK_DIR = .
 PROJECT = metaverse
@@ -12,7 +12,7 @@ DEFAULT_RUN_OPTIONS = --cap-add=SYS_PTRACE --shm-size=1024m
 .PHONY: default install restart start stop logs uninstall deploy sh status
 
 default:
-	$(DOCKER) build -f $(DOCKERFILE_DIR)/Dockerfile -t $(IMAGE_NAME):$(IMAGE_TAG) $(WORK_DIR)
+	dotnet publish -t:PublishContainer -p:ContainerRepository=$(IMAGE_NAME) -p:ContainerImageTag=$(IMAGE_TAG)
 
 install:
 	$(DOCKER) run $(RUN_OPTIONS) -p 80:80 -tid --restart=on-failure --name $(APP_NAME) $(IMAGE_NAME):$(IMAGE_TAG)
